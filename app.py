@@ -1,4 +1,4 @@
-# Imports
+### Imports ###
 import pandas as pd
 from pathlib import Path
 from faicons import icon_svg
@@ -9,23 +9,30 @@ from shiny.ui import page_navbar
 from shiny.express import render, ui, input
 from shinywidgets import render_plotly
 import plotly.express as px
-from scipy import stats
+import plotly.graph_objects as go
+import shinyswatch
+
+### Theme ###
+shinyswatch.theme.spacelab()
 
 
+### Dataset ###
 def vgsales_df():
     infile = Path(__file__).parent.joinpath("vgsales.csv")
     return pd.read_csv(infile)
 
 
+### Page Overview ###
 ui.page_opts(title="Video Game Sales Dashboard", fillable=True)
 
+### Sidebar ###
 with ui.sidebar(position="left", bg="#f8f8f8", open="open"):
-    ui.h5("Video Games Sales", class_="text-center")
+    ui.h5("Video Games Sales (1980-2020)", class_="text-center")
     ui.p(
         "Explore the video game sales dataset.",
         class_="text-center",
     )
-
+    ui.hr()
     ui.input_selectize(
         "selected_genre_list",
         "Select a genre:",
@@ -46,11 +53,6 @@ with ui.sidebar(position="left", bg="#f8f8f8", open="open"):
         multiple=True,
     )
     ui.input_action_button("reset", "Reset filters")
-
-    #    ui.input_slider("slider", "Filter by year", min=1980, max=2020, value=[1980, 2020])
-    #    ui.input_date_range("year_input", "Filter by year", start="1980-01-01", end="2020-12-31",
-    #                        format='yyyy', startview='year', min="1980-01-01", max="2020-12-31")
-
     ui.hr()
     ui.h5("Project Links:")
     ui.a(
@@ -79,31 +81,23 @@ with ui.sidebar(position="left", bg="#f8f8f8", open="open"):
         target="_blank",
     )
 
-# Top KPIs
+### Top KPIs (Sales) ###
 with ui.layout_columns():
-    with ui.value_box(
-        showcase=icon_svg("dollar-sign"), theme="bg-gradient-green-purple"
-    ):
+    with ui.value_box(showcase=icon_svg("dollar-sign"), theme="bg-gradient-green-blue"):
         "North America Sales"
 
         @render.ui
         def na_sales():
             return f"${round(filtered_df()['NA_Sales'].sum())} million"
 
-    # count of records            return f"{filtered_df().shape[0]} Billion"
-    with ui.value_box(
-        showcase=icon_svg("dollar-sign"), theme="bg-gradient-green-purple"
-    ):
+    with ui.value_box(showcase=icon_svg("dollar-sign"), theme="bg-gradient-green-blue"):
         "Europe Sales"
 
         @render.ui
         def eu_sales():
             return f"${round(filtered_df()['EU_Sales'].sum())} million"
 
-    # count of records            return f"{filtered_df().shape[0]} Billion"
-    with ui.value_box(
-        showcase=icon_svg("dollar-sign"), theme="bg-gradient-green-purple"
-    ):
+    with ui.value_box(showcase=icon_svg("dollar-sign"), theme="bg-gradient-green-blue"):
         "Japan Sales"
 
         @render.ui
@@ -111,8 +105,32 @@ with ui.layout_columns():
             return f"${round(filtered_df()['JP_Sales'].sum())} million"
 
 
-# count of records            return f"{filtered_df().shape[0]} Billion"
+### Line graph ###
+with ui.layout_columns():
+    with ui.card():
 
+        @render_plotly
+        def total_sales():
+            summed_data = (
+                filtered_df()
+                .groupby(["Year", "Genre"])["Global_Sales"]
+                .sum()
+                .reset_index()
+            )
+            plotly_total_sales = px.line(
+                filtered_df(),
+                x=summed_data["Year"],
+                y=summed_data["Global_Sales"],
+                color=summed_data["Genre"],
+                title="Global Sales by Year and Genre",
+            )
+            plotly_total_sales.update_layout(
+                xaxis_title="Year", yaxis_title="Global Sales"
+            )
+            return plotly_total_sales
+
+
+### Data Grid ###
 with ui.card():
     ui.card_header("Data Grid")
 
@@ -121,17 +139,11 @@ with ui.card():
         return render.DataGrid(filtered_df())
 
 
-# Filtered data
+### Filtered data ###
 @reactive.calc
 def filtered_df():
     genre_input = input.selected_genre_list()
-    #    year_input = input.selected_year()
-    # return vgsales_df()[vgsales_df()["Genre"].isin(genre_input)] & [vgsales_df()[] & [vgsales_df()[
     return vgsales_df()[(vgsales_df()["Genre"].isin(genre_input))]
-
-
-#                                   & (vgsales_df['Year'].isin(year_input))]
-#                                   & (penguins_df['sex'].isin(sex_input))]
 
 
 ### Reset filters to original state ###
@@ -142,4 +154,3 @@ def _():
         "selected_genre_list",
         selected=["Action"],
     )
-
